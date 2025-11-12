@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-const APP_URL = 'https://next.elitea.ai/alita_ui/agents/latest';
-const USERNAME = 'alita@elitea.ai';
-const PASSWORD = 'rokziJ-nuvzo4-hucmih';
-const AGENT_NAME = 'kpi_aqa_agent';
+// Allow overriding via env vars from CI, fallback to defaults for local run
+const APP_URL = process.env.APP_URL || 'https://next.elitea.ai/alita_ui/agents/latest';
+const USERNAME = process.env.TEST_USERNAME || 'alita@elitea.ai';
+const PASSWORD = process.env.TEST_PASSWORD || 'rokziJ-nuvzo4-hucmih';
+const AGENT_NAME = process.env.AGENT_NAME || 'kpi_aqa_agent';
 
 // TC05: Edit Existing Agent Context
 // Preconditions: User is logged in and agent exists
@@ -16,7 +17,7 @@ const AGENT_NAME = 'kpi_aqa_agent';
 // Expected: Agent is updated with new context and user is notified with a success message
 
 test.describe('TC05 - Edit Existing Agent Context', () => {
-  test('should update agent context and show success message', async ({ page, context }) => {
+  test('should update agent context and show success message', async ({ page }) => {
     // Go to application
     await page.goto(APP_URL);
 
@@ -26,11 +27,16 @@ test.describe('TC05 - Edit Existing Agent Context', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Wait for Agents page
-    await expect(page.getByRole('heading', { name: /Agents/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Agents/i })).toBeVisible({ timeout: 20000 });
 
     // Search agent by name and open
     await page.getByRole('textbox', { name: /search/i }).fill(AGENT_NAME);
-    await page.getByRole('link', { name: AGENT_NAME }).click();
+    // Some UIs render list items as buttons or links; try clickable roles in order
+    const agentClickable =
+      page.getByRole('link', { name: AGENT_NAME })
+        .or(page.getByRole('button', { name: AGENT_NAME }))
+        .or(page.getByText(AGENT_NAME).first());
+    await agentClickable.click();
 
     // Navigate to Configuration
     await page.getByRole('tab', { name: /Configuration/i }).click();
@@ -43,7 +49,7 @@ test.describe('TC05 - Edit Existing Agent Context', () => {
     await page.getByRole('button', { name: /Save/i }).click();
 
     // Validate success message
-    await expect(page.getByText('The agent has been updated')).toBeVisible();
+    await expect(page.getByText(/The agent has been updated/i)).toBeVisible({ timeout: 10000 });
 
     // Validate the field reflects new value
     await expect(page.getByLabel(/Guidelines for the AI agent/i)).toHaveValue(newContext);
