@@ -23,7 +23,7 @@ test.describe('TC05 - Edit Existing Agent Context', () => {
 
     // Handle Nexus auth login
     await page.getByLabel('Username or email').fill(USERNAME);
-    await page.getByLabel('Password').fill(PASSWORD);
+    await page.locator('#password').fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Wait for Agents page
