@@ -1,0 +1,69 @@
+name: Playwright Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_pattern:
+        description: 'Optional test pattern (e.g., tests/tc05-edit-agent.spec.ts)'
+        required: false
+        default: ''
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'tests/**'
+      - '.github/workflows/playwright.yml'
+  push:
+    branches: [ master, feat/tc05-edit-agent ]
+    paths:
+      - 'tests/**'
+      - '.github/workflows/playwright.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            echo "No package.json found; initializing minimal project and installing Playwright"
+            npm init -y
+            npm install -D @playwright/test
+          fi
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        env:
+          APP_URL: https://next.elitea.ai/alita_ui/agents/latest
+          TEST_USERNAME: alita@elitea.ai
+          TEST_PASSWORD: rokziJ-nuvzo4-hucmih
+          AGENT_NAME: kpi_aqa_agent
+        run: |
+          TESTS_TO_RUN="${{ github.event.inputs.test_pattern }}"
+          if [ -z "$TESTS_TO_RUN" ]; then
+            npx playwright test
+          else
+            npx playwright test "$TESTS_TO_RUN"
+          fi
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: warn
