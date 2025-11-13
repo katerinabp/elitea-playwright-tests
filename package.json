@@ -1,15 +1,38 @@
 {
   "name": "elitea-playwright-tests",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
+  "description": "Playwright test suite for Elitea AI agent management platform",
   "scripts": {
     "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:debug": "PWDEBUG=1 playwright test"
+    "test:headed": "SET HEADED=true && playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:chrome": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:pom": "playwright test tests/*-pom.spec.ts",
+    "test:legacy": "playwright test tests/tc*.spec.ts --ignore-snapshots",
+    "test:single": "playwright test",
+    "test:retry": "playwright test --retries=2",
+    "report": "playwright show-report",
+    "report:open": "playwright show-report playwright-report",
+    "codegen": "playwright codegen https://next.elitea.ai",
+    "install:browsers": "playwright install --with-deps",
+    "clean": "if exist test-results rmdir /s /q test-results && if exist playwright-report rmdir /s /q playwright-report"
   },
   "devDependencies": {
     "@playwright/test": "^1.37.1",
     "typescript": "^5.0.4",
     "ts-node": "^10.9.1"
-  }
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "e2e",
+    "automation",
+    "typescript"
+  ],
+  "author": "EPAM QA Team",
+  "license": "UNLICENSED"
 }
