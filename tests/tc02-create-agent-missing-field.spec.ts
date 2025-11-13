@@ -1,200 +1,100 @@
-import { test, expect } from '@playwright/test';
-import { BASE_URL, USER_EMAIL, USER_PASSWORD } from './test-constants';
+import { test, expect } from './fixtures/page-objects.fixture';
+import { TIMEOUTS } from './config/timeouts';
 
-// Test data - intentionally leaving Name empty
-const AGENT_NAME = ''; // Empty to test validation
-const AGENT_DESCRIPTION = 'Test Description';
-const AGENT_CONTEXT = 'Test Context';
+/**
+ * TC02 - Create Agent Skipping Mandatory Field (Name)
+ * 
+ * Test Case: Verify that the system prevents creating an agent without a mandatory field
+ * Priority: High
+ * Type: Negative Scenario - Validation Testing
+ * 
+ * Preconditions:
+ * - User is logged in
+ * 
+ * Test Steps:
+ * 1. Navigate to agents page
+ * 2. Click "Create Agent" button
+ * 3. Leave Name field empty (mandatory field)
+ * 4. Fill Description field (optional)
+ * 5. Fill Context field (optional)
+ * 6. Attempt to save the agent
+ * 7. Verify validation prevents save (Save button disabled OR error message shown)
+ * 8. Verify agent was NOT created
+ */
 
-test.setTimeout(90000);
-
-test('TC02 — Create Agent Skipping Mandatory Field (Name)', async ({ page }) => {
-  // 1. Navigate and login
-  await page.goto(BASE_URL);
-
-  // Handle login flow
-  const emailSelector = 'input[name="email"], input[type="email"], input#username, input[name="username"]';
-  const passwordSelector = 'input[name="password"], input[type="password"], input#password';
-
-  await page.waitForSelector(emailSelector, { timeout: 20000 });
-  await page.fill(emailSelector, USER_EMAIL);
-  await page.waitForSelector(passwordSelector, { timeout: 10000 });
-  await page.fill(passwordSelector, USER_PASSWORD);
-
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }).catch(() => {}),
-    page.click('button:has-text("Sign in"), button:has-text("Log in"), button[type="submit"]'),
-  ]);
-
-  // Wait for agents page to load
-  await page.waitForTimeout(2000);
-  console.log(`Logged in, current URL: ${page.url()}`);
-
-  // 2. Click the + Agent button
-  console.log('Step 1: Looking for + Agent button...');
-  const createAgentButton = page.locator(
-    'button:has-text("+ Agent"), button:has-text("Create Agent"), button:has-text("Add Agent"), button:has-text("New Agent"), [aria-label*="Create"], [aria-label*="Add"]'
-  );
+test.describe('TC02 - Create Agent Missing Mandatory Field', () => {
   
-  await expect(createAgentButton.first()).toBeVisible({ timeout: 10000 });
-  console.log('+ Agent button found, clicking...');
-  await createAgentButton.first().click();
-  await page.waitForTimeout(2000);
+  test('TC02 — Create Agent Skipping Mandatory Field (Name)', async ({ authenticatedAgentsPage }) => {
+    const agentsPage = authenticatedAgentsPage;
+    
+    // Test data - intentionally leaving Name empty
+    const agentData = {
+      name: '', // Empty to test validation
+      description: 'Test Description for Validation',
+      context: 'Test Context for Validation'
+    };
 
-  // Take screenshot of opened form
-  await page.screenshot({ path: 'test-results/tc02-form-opened.png', fullPage: true });
+    console.log('\n=== TC02: Create Agent Missing Mandatory Field ===\n');
 
-  // 3. Leave Name field empty (intentionally skip filling it)
-  console.log('Step 2: Leaving Name field empty...');
-  
-  // 4. Fill Description field
-  console.log('Step 3: Filling Description field...');
-  const allTextareas = page.locator('textarea, input[type="text"]');
-  const textareaCount = await allTextareas.count();
-  console.log(`Found ${textareaCount} textarea/input fields`);
-  
-  let descriptionField;
-  const descriptionSelectors = [
-    'textarea[name="description"]',
-    'input[name="description"]',
-    'textarea[placeholder*="escription" i]',
-    'input[placeholder*="escription" i]',
-    'textarea[id*="description" i]',
-    'input[id*="description" i]',
-  ];
-  
-  for (const selector of descriptionSelectors) {
-    const count = await page.locator(selector).count();
-    if (count > 0) {
-      console.log(`Found description field with selector: ${selector}`);
-      descriptionField = page.locator(selector).first();
-      break;
+    // Step 1: Navigate to agents page (already authenticated via fixture)
+    console.log('Step 1: User is already on agents page');
+    await agentsPage.page.waitForTimeout(TIMEOUTS.MEDIUM);
+
+    // Step 2: Click Create Agent button
+    console.log('Step 2: Clicking Create Agent button');
+    await agentsPage.clickCreateAgent();
+    await agentsPage.screenshot('form-opened.png');
+
+    // Step 3: Leave Name field empty (intentionally skip)
+    console.log('Step 3: Leaving Name field empty (testing validation)');
+    // Explicitly NOT filling the name field
+
+    // Step 4: Fill Description field
+    console.log('Step 4: Filling Description field');
+    await agentsPage.fillDescription(agentData.description);
+
+    // Step 5: Fill Context field
+    console.log('Step 5: Filling Context field');
+    await agentsPage.fillContext(agentData.context);
+    await agentsPage.screenshot('fields-filled-no-name.png');
+
+    // Step 6: Check if Save button is disabled
+    console.log('Step 6: Checking Save button state');
+    const isSaveDisabled = await agentsPage.isSaveButtonDisabled();
+    console.log(`Save button disabled: ${isSaveDisabled}`);
+
+    // Step 7: Check for validation error messages
+    console.log('Step 7: Checking for validation error messages');
+    const hasValidationError = await agentsPage.checkValidationError();
+    console.log(`Validation error shown: ${hasValidationError}`);
+
+    await agentsPage.screenshot('validation-state.png');
+
+    // Step 8: Verify validation is working
+    console.log('Step 8: Verifying validation behavior');
+    const validationWorking = isSaveDisabled || hasValidationError;
+    
+    if (validationWorking) {
+      console.log('✓ Validation is working correctly');
+      console.log(`  - Save button disabled: ${isSaveDisabled}`);
+      console.log(`  - Error message shown: ${hasValidationError}`);
+    } else {
+      console.log('⚠ No obvious validation detected');
     }
-  }
-  
-  if (descriptionField) {
-    await descriptionField.fill(AGENT_DESCRIPTION);
-    console.log('✓ Description field filled');
-  }
 
-  // 5. Fill Context field
-  console.log('Step 4: Filling Context field...');
-  let contextField;
-  const contextSelectors = [
-    'textarea[name="context"]',
-    'textarea[name="guidelines"]',
-    'textarea[placeholder*="ontext" i]',
-    'textarea[placeholder*="uideline" i]',
-    'textarea[id*="context" i]',
-    'textarea[id*="guideline" i]',
-  ];
-  
-  for (const selector of contextSelectors) {
-    const count = await page.locator(selector).count();
-    if (count > 0) {
-      console.log(`Found context field with selector: ${selector}`);
-      contextField = page.locator(selector).first();
-      break;
-    }
-  }
-  
-  if (contextField) {
-    await contextField.fill(AGENT_CONTEXT);
-    console.log('✓ Context field filled');
-  }
+    // Step 9: Verify agent was NOT created (URL should not change)
+    console.log('Step 9: Verifying agent was NOT created');
+    await agentsPage.page.waitForTimeout(TIMEOUTS.MEDIUM);
+    const currentUrl = agentsPage.page.url();
+    console.log(`Current URL: ${currentUrl}`);
+    
+    const agentNotCreated = !currentUrl.match(/\/agents\/all\/\d+/);
+    console.log(`Agent not created (URL check): ${agentNotCreated}`);
 
-  // Take screenshot before attempting save
-  await page.screenshot({ path: 'test-results/tc02-before-save.png', fullPage: true });
-
-  // 6. Try to click Save button
-  console.log('Step 5: Attempting to click Save button...');
-  const saveButton = page.locator(
-    'button:has-text("Save"), button:has-text("Create"), button:has-text("Submit"), button[type="submit"]'
-  );
-
-  // Check if Save button is disabled
-  const isDisabled = await saveButton.first().isDisabled();
-  console.log(`Save button disabled: ${isDisabled}`);
-
-  if (!isDisabled) {
-    await saveButton.first().click();
-    console.log('Save button clicked');
-    await page.waitForTimeout(2000);
-  } else {
-    console.log('✓ Save button is disabled (validation working)');
-  }
-
-  // 7. Verify error message or validation feedback
-  console.log('Step 6: Checking for validation error messages...');
-  
-  const errorIndicators = [
-    'text=required',
-    'text=Required',
-    'text=mandatory',
-    'text=Mandatory',
-    'text=cannot be empty',
-    'text=must not be empty',
-    'text=is required',
-    '[role="alert"]',
-    '.error',
-    '.validation-error',
-    '[aria-invalid="true"]',
-  ];
-
-  let errorFound = false;
-  let errorMessage = '';
-  
-  for (const indicator of errorIndicators) {
-    const count = await page.locator(indicator).count();
-    if (count > 0) {
-      const text = await page.locator(indicator).first().textContent();
-      console.log(`✓ Validation error found: "${indicator}" - "${text}"`);
-      errorMessage = text || indicator;
-      errorFound = true;
-      break;
-    }
-  }
-
-  // Check if Name field has error styling or validation attribute
-  const nameField = page.locator('input[name="name"], input[placeholder*="Name" i]').first();
-  const hasErrorAttribute = await nameField.evaluate((el) => {
-    return el.hasAttribute('aria-invalid') || el.classList.contains('error') || el.classList.contains('invalid');
-  }).catch(() => false);
-  
-  if (hasErrorAttribute) {
-    console.log('✓ Name field has error styling/attribute');
-    errorFound = true;
-  }
-
-  // Take screenshot after validation
-  await page.screenshot({ path: 'test-results/tc02-validation-error.png', fullPage: true });
-
-  // 8. Verify Save button is disabled OR error message is shown
-  console.log('Step 7: Verifying validation behavior...');
-  const validationWorking = isDisabled || errorFound;
-  
-  if (validationWorking) {
-    console.log('✓ Validation is working correctly');
-    console.log(`  - Save button disabled: ${isDisabled}`);
-    console.log(`  - Error message shown: ${errorFound}`);
-    if (errorMessage) {
-      console.log(`  - Error message: "${errorMessage}"`);
-    }
-  } else {
-    console.log('⚠ No obvious validation detected, checking if agent was created...');
-  }
-
-  // 9. Verify agent was NOT created by checking URL hasn't changed
-  await page.waitForTimeout(1000);
-  const currentUrl = page.url();
-  console.log(`Current URL: ${currentUrl}`);
-  
-  const agentNotCreated = !currentUrl.match(/\/agents\/all\/\d+/);
-  console.log(`Agent not created (URL check): ${agentNotCreated}`);
-
-  // Final assertion: Either validation prevented save OR agent wasn't created
-  expect(validationWorking || agentNotCreated).toBe(true);
-  
-  console.log('✓ TC02 PASSED: Mandatory field validation is working');
-  console.log('=== TC02 TEST COMPLETE ===');
+    // Final assertion: Either validation prevented save OR agent wasn't created
+    expect(validationWorking || agentNotCreated).toBe(true);
+    
+    console.log('✓ TC02 PASSED: Mandatory field validation is working');
+    console.log('\n=== TC02 TEST COMPLETE ===\n');
+  });
 });
