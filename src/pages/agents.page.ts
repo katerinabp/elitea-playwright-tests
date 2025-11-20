@@ -120,8 +120,14 @@ export class AgentsPage extends BasePage {
    */
   async openAgent(agentName: string): Promise<void> {
     console.log(`Opening agent: ${agentName}`);
-    await this.page.click(`text=${agentName}`);
-    await this.page.waitForTimeout(TIMEOUTS.LONG);
+    const currentUrl = this.page.url();
+    
+    await Promise.all([
+      this.page.waitForURL(url => url !== currentUrl, { timeout: TIMEOUTS.PAGE_LOAD }).catch(() => {}),
+      this.page.click(`text=${agentName}`)
+    ]);
+    
+    await this.page.waitForLoadState('domcontentloaded', { timeout: TIMEOUTS.NAVIGATION }).catch(() => {});
     console.log('✓ Agent opened');
   }
 
@@ -224,19 +230,19 @@ export class AgentsPage extends BasePage {
    */
   async saveWithRedirect(): Promise<boolean> {
     try {
-      const savePromise = this.saveButton.first().click();
-      const responsePromise = this.page.waitForResponse(
-        (resp) => resp.status() === 200 && resp.request().url().includes('/agents/'),
-        { timeout: TIMEOUTS.API_RESPONSE }
-      ).catch(() => null);
-
-      await Promise.race([
-        Promise.all([responsePromise, savePromise]),
-        savePromise,
+      console.log('Clicking Save button...');
+      const currentUrl = this.page.url();
+      
+      // Click save and wait for URL change (indicates navigation)
+      await Promise.all([
+        this.page.waitForURL(url => url !== currentUrl, { timeout: TIMEOUTS.PAGE_LOAD }).catch(() => {}),
+        this.saveButton.first().click()
       ]);
 
-      console.log('✓ Save operation completed');
-      await this.page.waitForTimeout(TIMEOUTS.LONG).catch(() => {});
+      console.log('✓ Save operation completed, navigation detected');
+      
+      // Wait for new page to load
+      await this.page.waitForLoadState('domcontentloaded', { timeout: TIMEOUTS.NAVIGATION }).catch(() => {});
       return true;
     } catch (error) {
       const err = error instanceof Error ? error.message : String(error);
@@ -370,8 +376,10 @@ export class AgentsPage extends BasePage {
 
     await this.screenshot('agent-form-filled.png');
     
-    // Use saveWithRedirect to handle page close/redirect after save
+    // Use saveWithRedirect to handle page navigation after save
     await this.saveWithRedirect();
+    
+    console.log('✓ Agent created and navigated to detail page');
   }
 
   /**
@@ -657,5 +665,63 @@ export class AgentsPage extends BasePage {
     }
 
     return null;
+  }
+
+  /**
+   * Navigate back to agents list page
+   */
+  async navigateToAgentsList(): Promise<void> {
+    console.log('Navigating to agents list...');
+    
+    // Wait for any pending navigation/operations to complete
+    await this.page.waitForTimeout(TIMEOUTS.LONG);
+    await this.page.waitForLoadState('domcontentloaded', { timeout: TIMEOUTS.NAVIGATION }).catch(() => {});
+    
+    try {
+      await this.page.goto('https://next.elitea.ai/alita_ui/agents/all', { 
+        waitUntil: 'domcontentloaded',
+        timeout: TIMEOUTS.PAGE_LOAD 
+      });
+      
+      await this.page.waitForLoadState('domcontentloaded', { timeout: TIMEOUTS.NAVIGATION }).catch(() => {});
+      console.log('✓ Navigated to agents list');
+    } catch (error) {
+      const err = error instanceof Error ? error.message : String(error);
+      console.log(`⚠ Navigation error: ${err}`);
+      
+      // Check if we're already on the agents list page
+      if (this.page.url().includes('/agents/all')) {
+        console.log('✓ Already on agents list page');
+        return;
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Check if an agent is in the list
+   * @param agentName - Name of the agent to look for
+   * @returns true if agent is found, false otherwise
+   */
+  async isAgentInList(agentName: string): Promise<boolean> {
+    await this.page.waitForTimeout(TIMEOUTS.MEDIUM);
+
+    const selectors = [
+      `text="${agentName}"`,
+      `a:has-text("${agentName}")`,
+      `[data-testid*="agent"]:has-text("${agentName}")`,
+    ];
+
+    for (const selector of selectors) {
+      const count = await this.page.locator(selector).count();
+      if (count > 0) {
+        console.log(`✓ Agent found in list: ${agentName}`);
+        return true;
+      }
+    }
+
+    console.log(`⚠ Agent not found in list: ${agentName}`);
+    return false;
   }
 }

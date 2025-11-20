@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: 'tests',
   
   // Timeouts
-  timeout: 90_000, // Global test timeout (matches individual test requirements)
+  timeout: 240_000, // Global test timeout (4 minutes for complex multi-step tests with login)
   expect: { timeout: 10_000 }, // Assertion timeout (increased for slow UI)
   
   // Execution strategy

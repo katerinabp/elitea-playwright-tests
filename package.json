@@ -22,7 +22,8 @@
     "clean": "if exist test-results rmdir /s /q test-results && if exist playwright-report rmdir /s /q playwright-report"
   },
   "devDependencies": {
-    "@playwright/test": "^1.37.1",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1",
     "typescript": "^5.0.4",
     "ts-node": "^10.9.1"
   },

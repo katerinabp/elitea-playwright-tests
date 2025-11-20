@@ -18,11 +18,11 @@ export async function login(page: Page) {
   await page.fill(passwordSelector, USER_PASSWORD);
 
   await Promise.all([
-    page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }).catch(() => {}),
+    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {}),
     page.click('button:has-text("Sign in"), button:has-text("Log in"), button[type="submit"]'),
   ]);
   
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(1000);
   console.log(`✓ Logged in successfully, current URL: ${page.url()}`);
 }
 
